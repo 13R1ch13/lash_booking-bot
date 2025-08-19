@@ -49,8 +49,8 @@ def get_appointments_for_date(date):
 
 def is_time_range_available(date, start_time_str, duration_minutes):
     """
-    Проверяет, что выбранное время + длительность услуги
-    не пересекаются с уже записанными процедурами в этот день
+    Ensures that the selected time plus service duration
+    does not overlap with existing appointments on that day
     """
     start_time = datetime.strptime(start_time_str, "%H:%M")
     end_time = start_time + timedelta(minutes=duration_minutes)

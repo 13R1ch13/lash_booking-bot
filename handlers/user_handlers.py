@@ -16,10 +16,10 @@ import datetime
 
 router = Router()
 
-# ---------- Клавиатуры ----------
+# ---------- Keyboards ----------
 def service_keyboard():
     return ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text=s)] for s in services.keys()] + [[KeyboardButton(text="⬅️ Назад")]],
+        keyboard=[[KeyboardButton(text=s)] for s in services.keys()] + [[KeyboardButton(text="⬅️ Back")]],
         resize_keyboard=True
     )
 
@@ -28,9 +28,9 @@ def date_keyboard():
     dates = []
     for i in range(14):
         day = today + datetime.timedelta(days=i)
-        if day.weekday() in [0, 1, 3, 4, 5]:  # Пн, Вт, Чт, Пт, Сб
+        if day.weekday() in [0, 1, 3, 4, 5]:  # Mon, Tue, Thu, Fri, Sat
             dates.append([KeyboardButton(text=day.strftime("%Y-%m-%d"))])
-    dates.append([KeyboardButton(text="⬅️ Назад")])
+    dates.append([KeyboardButton(text="⬅️ Back")])
     return ReplyKeyboardMarkup(keyboard=dates, resize_keyboard=True)
 
 def time_keyboard(date, service_minutes):
@@ -41,7 +41,7 @@ def time_keyboard(date, service_minutes):
             start_minutes = h * 60 + m
             end_minutes = start_minutes + service_minutes
 
-            if end_minutes > 19 * 60:  # мастер работает до 19:00
+            if end_minutes > 19 * 60:  # the master works until 19:00
                 continue
 
             start_str = start.strftime("%H:%M")
@@ -49,56 +49,56 @@ def time_keyboard(date, service_minutes):
                 times.append([KeyboardButton(text=start_str)])
 
     if not times:
-        times = [[KeyboardButton(text="Нет свободного времени")]]
-    times.append([KeyboardButton(text="⬅️ Назад")])
+        times = [[KeyboardButton(text="No available time")]]
+    times.append([KeyboardButton(text="⬅️ Back")])
     return ReplyKeyboardMarkup(keyboard=times, resize_keyboard=True)
 
-# ---------- Старт ----------
+# ---------- Start ----------
 @router.message(Command("start"))
 async def start_handler(message: Message):
-    await message.answer("Привет! Я бот для записи к мастеру. Выберите действие:", reply_markup=main_menu())
+    await message.answer("Hello! I'm a booking bot. Choose an action:", reply_markup=main_menu())
 
-# ---------- Запись: старт ----------
-@router.message(F.text == "📝 Записаться")
+# ---------- Booking: start ----------
+@router.message(F.text == "📝 Book")
 async def book(message: Message, state: FSMContext):
-    await message.answer("Выберите услугу:", reply_markup=service_keyboard())
+    await message.answer("Choose a service:", reply_markup=service_keyboard())
     await state.set_state(BookingStates.choosing_service)
 
-# ---------- Выбор услуги ----------
+# ---------- Choose service ----------
 @router.message(BookingStates.choosing_service)
 async def choose_service(message: Message, state: FSMContext):
-    if message.text == "⬅️ Назад":
+    if message.text == "⬅️ Back":
         await state.clear()
-        await message.answer("Главное меню", reply_markup=main_menu())
+        await message.answer("Main menu", reply_markup=main_menu())
         return
 
     if message.text not in services:
-        await message.answer("Пожалуйста, выбери услугу из списка.")
+        await message.answer("Please choose a service from the list.")
         return
 
     await state.update_data(service=message.text)
     await message.answer(
-        "📅 Выберите дату из списка или введите вручную в формате: 2025-09-01",
+        "📅 Choose a date from the list or enter it manually in the format: 2025-09-01",
         reply_markup=date_keyboard()
     )
     await state.set_state(BookingStates.choosing_date)
 
-# ---------- Выбор даты (в том числе ручной ввод) ----------
+# ---------- Choose date (including manual input) ----------
 @router.message(BookingStates.choosing_date)
 async def choose_date(message: Message, state: FSMContext):
-    if message.text == "⬅️ Назад":
-        await message.answer("Выберите услугу:", reply_markup=service_keyboard())
+    if message.text == "⬅️ Back":
+        await message.answer("Choose a service:", reply_markup=service_keyboard())
         await state.set_state(BookingStates.choosing_service)
         return
 
     try:
         selected_date = datetime.datetime.strptime(message.text, "%Y-%m-%d").date()
     except ValueError:
-        await message.answer("❌ Неверный формат даты. Введите в формате: 2025-09-01")
+        await message.answer("❌ Invalid date format. Enter in the format: 2025-09-01")
         return
 
     if selected_date < datetime.date.today():
-        await message.answer("❌ Нельзя выбрать прошедшую дату.")
+        await message.answer("❌ You can't choose a past date.")
         return
 
     await state.update_data(date=message.text)
@@ -106,18 +106,18 @@ async def choose_date(message: Message, state: FSMContext):
     duration = services[data['service']]
 
     await message.answer(
-        f"Вы выбрали: {message.text}\nТеперь выберите время:",
+        f"You chose: {message.text}\nNow pick a time:",
         reply_markup=time_keyboard(message.text, duration)
     )
     await state.set_state(BookingStates.choosing_time)
 
-# ---------- Выбор времени ----------
+# ---------- Choose time ----------
 @router.message(BookingStates.choosing_time)
 async def choose_time(message: Message, state: FSMContext):
-    if message.text == "⬅️ Назад":
+    if message.text == "⬅️ Back":
         data = await state.get_data()
         await message.answer(
-            "📅 Выберите дату из списка или введите вручную в формате: 2025-09-01",
+            "📅 Choose a date from the list or enter it manually in the format: 2025-09-01",
             reply_markup=date_keyboard()
         )
         await state.set_state(BookingStates.choosing_date)
@@ -126,7 +126,7 @@ async def choose_time(message: Message, state: FSMContext):
     try:
         datetime.datetime.strptime(message.text, "%H:%M")
     except:
-        await message.answer("Пожалуйста, выбери время из списка.")
+        await message.answer("Please choose a time from the list.")
         return
 
     await state.update_data(time=message.text)
@@ -134,7 +134,7 @@ async def choose_time(message: Message, state: FSMContext):
 
     duration = services[data['service']]
     if not is_time_range_available(data["date"], data["time"], duration):
-        await message.answer("⛔ Это время уже занято. Пожалуйста, выбери другое.")
+        await message.answer("⛔ This time is already taken. Please choose another.")
         return
 
     save_appointment(
@@ -145,57 +145,57 @@ async def choose_time(message: Message, state: FSMContext):
         time=data["time"]
     )
 
-    record = f"✅ Запись подтверждена:\nУслуга: {data['service']}\nДата: {data['date']}\nВремя: {data['time']}"
+    record = f"✅ Appointment confirmed:\nService: {data['service']}\nDate: {data['date']}\nTime: {data['time']}"
     await message.answer(record, reply_markup=main_menu())
     await state.clear()
 
-# ---------- Просмотр записей ----------
-@router.message(F.text == "📅 Мои записи")
+# ---------- View appointments ----------
+@router.message(F.text == "📅 My appointments")
 async def show_my_appointments(message: Message):
     records = get_user_appointments(message.from_user.id)
     if not records:
-        await message.answer("У вас пока нет записей.")
+        await message.answer("You don't have any appointments yet.")
         return
 
-    text = "📋 Ваши записи:\n\n"
+    text = "📋 Your appointments:\n\n"
     for service, date, time in records:
-        text += f"• {service} — {date} в {time}\n"
+        text += f"• {service} — {date} at {time}\n"
     await message.answer(text)
 
-# ---------- Отмена записи ----------
-@router.message(F.text == "❌ Отменить запись")
+# ---------- Cancel appointment ----------
+@router.message(F.text == "❌ Cancel appointment")
 async def cancel_booking(message: Message, state: FSMContext):
     records = get_user_appointments(message.from_user.id)
     if not records:
-        await message.answer("У вас нет активных записей.")
+        await message.answer("You have no active appointments.")
         return
 
-    keyboard = [[KeyboardButton(text=f"{service} — {date} в {time}")]
+    keyboard = [[KeyboardButton(text=f"{service} — {date} at {time}")]
                 for service, date, time in records]
-    keyboard.append([KeyboardButton(text="⬅️ Назад")])
+    keyboard.append([KeyboardButton(text="⬅️ Back")])
 
-    await message.answer("Выберите запись, которую хотите отменить:", reply_markup=ReplyKeyboardMarkup(
+    await message.answer("Choose the appointment you want to cancel:", reply_markup=ReplyKeyboardMarkup(
         keyboard=keyboard,
         resize_keyboard=True
     ))
     await state.set_state(BookingStates.confirming)
 
-# ---------- Подтверждение отмены ----------
+# ---------- Cancellation confirmation ----------
 @router.message(BookingStates.confirming)
 async def confirm_cancel(message: Message, state: FSMContext):
-    if message.text == "⬅️ Назад":
-        await message.answer("Главное меню", reply_markup=main_menu())
+    if message.text == "⬅️ Back":
+        await message.answer("Main menu", reply_markup=main_menu())
         await state.clear()
         return
 
     try:
         parts = message.text.split(" — ")
         service = parts[0]
-        date, time = parts[1].split(" в ")
+        date, time = parts[1].split(" at ")
     except:
-        await message.answer("Формат записи неверный. Пожалуйста, выберите из списка.")
+        await message.answer("Invalid appointment format. Please choose from the list.")
         return
 
     delete_user_appointment(message.from_user.id, service, date, time)
-    await message.answer("❌ Запись отменена.", reply_markup=main_menu())
+    await message.answer("❌ Appointment cancelled.", reply_markup=main_menu())
     await state.clear()
